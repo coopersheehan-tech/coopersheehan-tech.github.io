@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tagged Notes → Excel</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
+<style>
+  :root{
+    --paper:#e9e2cd;
+    --paper-dark:#ded4b8;
+    --ink:#20303a;
+    --ink-soft:#4c5c66;
+    --stamp:#a8402f;
+    --stamp-dark:#7c2d20;
+    --sage:#6f7f5c;
+    --sage-dark:#4e5b40;
+    --card:#f4efe2;
+    --line:#c7bc9d;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 1px, transparent 1px, transparent 3px);
+    color:var(--ink);
+    font-family: 'Courier New', ui-monospace, monospace;
+    padding:32px 20px 60px;
+  }
+  .wrap{max-width:840px;margin:0 auto;}
+  h1{
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size:30px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    margin:0 0 4px;
+    color:var(--ink);
+    border-bottom:3px double var(--ink);
+    padding-bottom:10px;
+  }
+  .subtitle{color:var(--ink-soft);font-size:13px;margin:8px 0 28px;text-transform:uppercase;letter-spacing:1.5px;}
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    box-shadow:3px 3px 0 rgba(32,48,58,0.15);
+    padding:20px 22px;
+    margin-bottom:24px;
+  }
+  .panel h2{
+    font-family: Georgia, serif;
+    font-size:15px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+  }
+
+  textarea{
+    width:100%;
+    min-height:100px;
+    resize:vertical;
+    font-family:inherit;
+    font-size:15px;
+    padding:12px;
+    border:1px solid var(--line);
+    background:#fffdf7;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--sage);}
+
+  .tag-row{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;}
+  .stamp{
+    font-family: Georgia, serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    padding:7px 14px;
+    border:2px solid var(--stamp);
+    color:var(--stamp);
+    background:transparent;
+    cursor:pointer;
+    border-radius:2px;
+    transform:rotate(-1deg);
+    transition:transform 0.1s ease;
+  }
+  .stamp:nth-child(even){transform:rotate(1deg);}
+  .stamp:hover{transform:rotate(0deg) scale(1.03);}
+  .stamp.active{
+    background:var(--stamp);
+    color:#fdf6ec;
+    box-shadow:0 0 0 2px var(--stamp) inset;
+  }
+  .stamp.star{
+    border-color:#b8860b;
+    color:#b8860b;
+    font-size:17px;
+    padding:5px 14px;
+  }
+  .stamp.star.active{
+    background:#b8860b;
+    color:#fffdf0;
+    box-shadow:0 0 0 2px #b8860b inset;
+  }
+  .pill.star-pill{
+    border-color:#b8860b;
+    color:#8a6508;
+    background:rgba(184,134,11,0.1);
+    font-size:13px;
+  }
+
+  .tagmaker{display:flex;gap:8px;margin-top:4px;}
+  .tagmaker input{
+    flex:1;
+    font-family:inherit;
+    font-size:13px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    background:#fffdf7;
+  }
+
+  button.action{
+    font-family: Georgia, serif;
+    font-weight:700;
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    padding:9px 18px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+    cursor:pointer;
+  }
+  button.action:hover{background:var(--ink-soft);}
+  button.secondary{
+    background:transparent;
+    color:var(--sage-dark);
+    border:1px solid var(--sage);
+  }
+  button.secondary:hover{background:var(--sage);color:#fff;}
+
+  .note-card{
+    background:#fffdf7;
+    border:1px solid var(--line);
+    border-left:5px solid var(--sage);
+    padding:14px 16px;
+    margin-bottom:12px;
+    position:relative;
+  }
+  .note-card.starred{
+    background:#fdf8e8;
+    border-left:5px solid #b8860b;
+  }
+  .note-text{font-size:14px;line-height:1.5;margin:0 0 8px;white-space:pre-wrap;}
+  .note-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+  .note-tags{display:flex;flex-wrap:wrap;gap:6px;}
+  .pill{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    padding:3px 9px;
+    border:1px solid var(--stamp);
+    color:var(--stamp-dark);
+    border-radius:2px;
+    background:rgba(168,64,47,0.08);
+  }
+  .no-tags{font-size:11px;color:var(--ink-soft);font-style:italic;}
+  .del{
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-family:inherit;
+    font-size:12px;
+    cursor:pointer;
+    text-decoration:underline;
+  }
+  .del:hover{color:var(--stamp);}
+  .empty{color:var(--ink-soft);font-style:italic;font-size:14px;text-align:center;padding:24px 0;}
+  .footer-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:10px;}
+  .count{font-size:12px;color:var(--ink-soft);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Field notes</h1>
+  <p class="subtitle">Type a note, stamp it with tags, export the lot to Excel</p>
+
+  <div class="panel">
+    <h2>Tags</h2>
+    <div class="tag-row" id="tagRow"></div>
+    <div class="tagmaker">
+      <input type="text" id="newTagInput" placeholder="New tag name" maxlength="24">
+      <button class="action" id="addTagBtn">Add tag</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>New note</h2>
+    <textarea id="noteInput" placeholder="Write your note here..."></textarea>
+    <p style="font-size:11px; color:var(--ink-soft); margin:6px 0 0;">Press enter to save · shift+enter for a new line</p>
+    <div style="margin-top:14px;">
+      <button class="action" id="addNoteBtn">Save note</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="footer-row" style="margin-top:0;margin-bottom:16px;">
+      <h2 style="margin:0;">Saved notes</h2>
+      <span class="count"><span id="noteCount">0 notes</span> · <span id="saveStatus"></span></span>
+    </div>
+    <div id="notesList"></div>
+    <div class="footer-row">
+      <button class="secondary" id="clearBtn">Clear all</button>
+      <div style="display:flex; gap:10px;">
+        <button class="secondary" id="backupBtn">Download backup</button>
+        <button class="secondary" id="restoreBtn">Restore backup</button>
+        <button class="action" id="exportBtn">Export to Excel</button>
+      </div>
+    </div>
+    <input type="file" id="restoreInput" accept="application/json" style="display:none;">
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'field-notes-data-v1';
+let saved = {};
+try{ saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }catch(e){ saved = {}; }
+
+let tags = saved.tags && saved.tags.length ? saved.tags : ["★", "Idea", "Todo", "Important", "Question"];
+if(!tags.includes("★")) tags.unshift("★");
+let activeTags = new Set();
+let notes = saved.notes || [];
+
+const tagRow = document.getElementById('tagRow');
+const notesList = document.getElementById('notesList');
+const noteCount = document.getElementById('noteCount');
+const saveStatus = document.getElementById('saveStatus');
+const noteInputEl = document.getElementById('noteInput');
+
+let saveTimer = null;
+function persist(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({tags, notes}));
+  saveStatus.textContent = 'saved';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{ saveStatus.textContent = ''; }, 1200);
+}
+
+function renderTags(){
+  tagRow.innerHTML = '';
+  tags.forEach(tag=>{
+    const isStar = tag === '★';
+    const b = document.createElement('button');
+    b.className = 'stamp' + (isStar ? ' star' : '') + (activeTags.has(tag) ? ' active' : '');
+    b.textContent = tag;
+    b.title = isStar ? 'Star — highlights this row in the Excel export' : tag;
+    b.onclick = ()=>{
+      if(activeTags.has(tag)) activeTags.delete(tag); else activeTags.add(tag);
+      renderTags();
+    };
+    b.setAttribute('aria-pressed', activeTags.has(tag) ? 'true' : 'false');
+    tagRow.appendChild(b);
+  });
+}
+
+function renderNotes(){
+  notesList.innerHTML = '';
+  noteCount.textContent = notes.length + (notes.length===1 ? ' note' : ' notes');
+  if(notes.length===0){
+    notesList.innerHTML = '<p class="empty">No notes yet. Write one above.</p>';
+    return;
+  }
+  notes.slice().reverse().forEach((n)=>{
+    const realIndex = notes.indexOf(n);
+    const card = document.createElement('div');
+    const isStarred = n.tags.includes('★');
+    card.className = 'note-card' + (isStarred ? ' starred' : '');
+    const tagsHtml = n.tags.length
+      ? n.tags.map(t=>`<span class="pill${t==='★' ? ' star-pill' : ''}">${escapeHtml(t)}</span>`).join('')
+      : '<span class="no-tags">No tags</span>';
+    card.innerHTML = `
+      <p class="note-text">${escapeHtml(n.text)}</p>
+      <div class="note-meta">
+        <div class="note-tags">${tagsHtml}</div>
+        <button class="del" data-i="${realIndex}">Delete</button>
+      </div>
+    `;
+    notesList.appendChild(card);
+  });
+  notesList.querySelectorAll('.del').forEach(btn=>{
+    btn.onclick = ()=>{
+      notes.splice(parseInt(btn.dataset.i,10),1);
+      renderNotes();
+      persist();
+    };
+  });
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+document.getElementById('addTagBtn').onclick = ()=>{
+  const input = document.getElementById('newTagInput');
+  const val = input.value.trim();
+  if(val && !tags.includes(val)){
+    tags.push(val);
+    input.value = '';
+    renderTags();
+    persist();
+  }
+};
+document.getElementById('newTagInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); document.getElementById('addTagBtn').click(); }
+});
+
+function currentTimeStamp(){
+  const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  return '[' + t + '] ';
+}
+
+noteInputEl.addEventListener('keydown', (e)=>{
+  const isModifierOnly = ['Tab','Shift','Control','Alt','Meta','Escape'].includes(e.key);
+  if(noteInputEl.value === '' && !isModifierOnly){
+    noteInputEl.value = currentTimeStamp();
+    const end = noteInputEl.value.length;
+    noteInputEl.setSelectionRange(end, end);
+  }
+});
+noteInputEl.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    document.getElementById('addNoteBtn').click();
+  }
+});
+
+document.getElementById('addNoteBtn').onclick = ()=>{
+  const ta = noteInputEl;
+  const text = ta.value.trim();
+  if(!text) return;
+  notes.push({
+    text: text,
+    tags: Array.from(activeTags),
+    date: new Date().toLocaleString()
+  });
+  ta.value = '';
+  activeTags = new Set();
+  renderTags();
+  renderNotes();
+  persist();
+};
+
+document.getElementById('clearBtn').onclick = ()=>{
+  if(notes.length && confirm('Delete all saved notes?')){
+    notes = [];
+    renderNotes();
+    persist();
+  }
+};
+
+document.getElementById('exportBtn').onclick = ()=>{
+  if(notes.length === 0){
+    alert('No notes to export yet.');
+    return;
+  }
+  const rows = notes.map(n=>({
+    Note: n.text,
+    Tags: n.tags.join(', '),
+    'Date added': n.date
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:60},{wch:25},{wch:20}];
+
+  const goldFill = { patternType: 'solid', fgColor: { rgb: 'FFF3C4' } };
+  notes.forEach((n, i)=>{
+    if(n.tags.includes('★')){
+      const rowNum = i + 2;
+      ['A','B','C'].forEach(col=>{
+        const ref = col + rowNum;
+        if(ws[ref]){
+          ws[ref].s = { fill: goldFill };
+        }
+      });
+    }
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Notes');
+  XLSX.writeFile(wb, 'notes-export.xlsx');
+};
+
+document.getElementById('backupBtn').onclick = ()=>{
+  const backup = {tags, notes, exportedAt: new Date().toISOString()};
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'notes-backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const restoreInput = document.getElementById('restoreInput');
+document.getElementById('restoreBtn').onclick = ()=>{ restoreInput.click(); };
+restoreInput.addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    let data;
+    try{
+      data = JSON.parse(evt.target.result);
+    }catch(err){
+      alert('That file could not be read as a backup. Make sure it is a notes-backup.json file exported from this tool.');
+      restoreInput.value = '';
+      return;
+    }
+    if(!Array.isArray(data.notes) || !Array.isArray(data.tags)){
+      alert('That file does not look like a valid backup.');
+      restoreInput.value = '';
+      return;
+    }
+    const willReplace = notes.length > 0 || tags.length > 0;
+    const proceed = willReplace
+      ? confirm('This will replace your current notes and tags with the backup. Continue?')
+      : true;
+    if(proceed){
+      tags = data.tags;
+      notes = data.notes;
+      activeTags = new Set();
+      renderTags();
+      renderNotes();
+      persist();
+    }
+    restoreInput.value = '';
+  };
+  reader.readAsText(file);
+});
+
+renderTags();
+renderNotes();
+</script>
+</body>
+</html>
